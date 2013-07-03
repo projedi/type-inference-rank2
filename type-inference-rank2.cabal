@@ -1,0 +1,29 @@
+name:                type-inference-rank2
+version:             0.1.0
+synopsis:            Kfory, Wells type inference algorithm implementation
+-- description:         
+license:             BSD3
+license-file:        LICENSE
+author:              Alexander Shabalin
+maintainer:          shabalyn.a@gmail.com
+build-type:          Simple
+cabal-version:       >=1.8
+tested-with: GHC==7.6.*
+
+
+executable type-inference-rank2
+  main-is: Main.hs
+  build-depends: base ==4.6.*, containers ==0.5.*, mtl ==2.1.*, parsec ==3.1.*,
+                 array ==0.4.*, transformers ==0.3.*
+  ghc-options: -Wall
+  hs-source-dirs: src
+
+test-suite TestMain
+  type: exitcode-stdio-1.0
+  main-is: TestMain.hs
+  build-depends: base ==4.6.*, containers ==0.5.*, mtl ==2.1.*, parsec ==3.1.*,
+                 array ==0.4.*, transformers ==0.3.*,
+                 test-framework ==0.8.*, test-framework-hunit ==0.3.*,
+                 test-framework-quickcheck2 ==0.3.*, QuickCheck ==2.5.*
+  ghc-options: -Wall -fhpc
+  hs-source-dirs: src, tests

@@ -1,0 +1,4 @@
+*.swp
+cabal-dev/
+dist/
+run
