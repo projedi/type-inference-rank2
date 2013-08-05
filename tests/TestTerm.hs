@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module TestTerm(tests) where
 
 import Control.Applicative
@@ -8,6 +9,7 @@ import Test.QuickCheck
 import Term
 import VarEnvironment
 
+tests :: Test
 tests = testGroup "Term tests"
    [ testProperty "unique vars equivalence" prop_uniqueVarsEquiv
    ]
@@ -44,6 +46,7 @@ instance Arbitrary Term where
               0 -> arbitraryLambda vars n
               1 -> arbitraryApp vars n
               2 -> arbitraryVar vars
+              _ -> error "Impossible: not in (0,2) range"
           arbitraryLambda vars n = Lambda <$> elements vars <*> go vars (n - 1)
           arbitraryApp vars n = App <$> go vars (n - 1) <*> go vars (n - 1)
           arbitraryVar vars = Var <$> elements vars

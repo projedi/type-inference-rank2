@@ -69,6 +69,7 @@ showType prec (TArr t1 t2) = brackets (prec - 1) $
 showType prec t@(TForall _ _) = brackets prec $ forallSymb ++ showForall t
  where showForall (TForall x n@(TForall _ _)) = x ++ " " ++ showForall n
        showForall (TForall x n) = x ++ ". " ++ showType 0 n
+       showForall _ = error "showForall: Argument is not TForall. Couldn't happen."
 
 instance Show Type where
    show = showType 0

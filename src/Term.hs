@@ -96,6 +96,7 @@ showTerm prec t@(Lambda _ _) =
    brackets prec $ lambdaSymb ++ showLambda t
  where showLambda (Lambda x n@(Lambda _ _)) = x ++ " " ++ showLambda n
        showLambda (Lambda x n) = x ++ ". " ++ showTerm 0 n
+       showLambda _ = error "showLambda: Argument is not Lambda. Couldn't happen."
 
 instance Show Term where
    show = showTerm 0

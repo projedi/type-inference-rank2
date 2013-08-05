@@ -2,7 +2,6 @@ module TestASUP(tests) where
 
 import Test.Framework
 import Test.Framework.Providers.QuickCheck2
-import Test.QuickCheck
 import Data.Array
 import Data.List
 
@@ -13,6 +12,7 @@ import ThetaReduction
 import Type
 import VarEnvironment
 
+tests :: Test
 tests = testGroup "ASUP tests"
    [ testProperty "Generated ASUP is indeed ASUP" prop_asupCorrectness
    , testProperty "ASUP solver solves ASUP(If reported untypable, returns True)" prop_asupSolver
@@ -25,15 +25,15 @@ prop_asupCorrectness t = null $ filter (not . null) $ intersects allVars
        asup = computeASUP [] t''
        intersects [] = []
        intersects (x:xs) = intersections (x:xs) xs
-       intersections [] [] = []
-       intersections [x] _ = []
+       intersections [] _ = []
+       intersections [_] _ = []
        intersections (_:x:xs) [] = intersections (x:xs) xs
        intersections (x:xs) (y:ys) = intersect x y : intersections (x:xs) ys
        getLeftVars ((_ `EqualTo` _):xs) = getLeftVars xs
-       getLeftVars ((t `LessThan` _):xs) = freeVars t `union` getLeftVars xs
+       getLeftVars ((x `LessThan` _):xs) = freeVars x `union` getLeftVars xs
        getLeftVars [] = []
-       getRightVars ((t1 `EqualTo` t2):xs) = freeVars t1 `union` freeVars t2 `union` getRightVars xs
-       getRightVars ((_ `LessThan` t):xs) = freeVars t `union` getRightVars xs
+       getRightVars ((x1 `EqualTo` x2):xs) = freeVars x1 `union` freeVars x2 `union` getRightVars xs
+       getRightVars ((_ `LessThan` x):xs) = freeVars x `union` getRightVars xs
        getRightVars [] = []
        varCount = 1 + snd (bounds asup)
        vars i
@@ -50,7 +50,7 @@ prop_asupSolver term =
     Right subs -> check subs $ concat $ elems asup
  where t = evalInEnvironment [] $ typeTerm $ thetaReduction term
        asup = computeASUP [] t
-       check subs [] = True
+       check _ [] = True
        check subs (rel:rels) = checkRelation subs rel && check subs rels
        checkRelation subs (t1 `LessThan` t2) = checkLT (substituteAll subs t1) (substituteAll subs t2)
        checkRelation subs (t1 `EqualTo` t2) = checkET (substituteAll subs t1) (substituteAll subs t2)
@@ -58,7 +58,7 @@ prop_asupSolver term =
        checkET (TArr n m) (TArr p q) = checkET n p && checkET m q
        checkET _ _ = False
        checkLT (TVar _) (TVar _) = True
-       checkLT (TVar _) t = True
+       checkLT (TVar _) _ = True
        checkLT _ (TVar _) = False
        checkLT (TArr m n) (TArr p q) = checkLT m p && checkLT n q
        checkLT _ _ = False

@@ -25,6 +25,8 @@ instance TermClass TypedTerm where
    freeVars (TypedApp _ n m) = freeVars n `union` freeVars m
    freeVars (TypedLam _ (x,_) n) = freeVars n \\ [x]
 
+   substitute = undefined
+
 allTypeVars :: TypedTerm -> [String]
 allTypeVars (TypedVar t _) = freeVars t
 allTypeVars (TypedApp t n m) = freeVars t `union` allTypeVars n `union` allTypeVars m
@@ -57,6 +59,7 @@ data ASUPRelation = EqualTo Type Type
 polyVarName :: String -> Int -> String
 polyVarName x i = x ++ "_type_" ++ show i
 
+polyVarType :: String -> Int -> Type
 polyVarType = (TVar .) . polyVarName
 
 -- Assumes userTypes is good
@@ -97,8 +100,11 @@ redex1 (t `LessThan` TVar x) = (Just . (x `AssignTo`)) <$> renameVariables t
  where renameVariables (TVar _) = newTVar
        renameVariables (t1 `TArr` t2) =
           TArr <$> renameVariables t1 <*> renameVariables t2
+       renameVariables (TForall _ _) = error "redex1: relation with not rank-0 type"
 redex1 ((t1 `TArr` t2) `LessThan` (t3 `TArr` t4)) =
    maybe (redex1 (t2 `LessThan` t4)) (return . Just) =<< redex1 (t1 `LessThan` t3)
+redex1 ((TForall _ _) `LessThan` _) = error "redex1: relation with not rank-0 type"
+redex1 (_ `LessThan` (TForall _ _)) = error "redex1: relation with not rank-0 type"
 
 redex2 :: MonadError TypeError m => ASUPRelation -> m (Maybe (Substitution Type))
 redex2 (TVar x `EqualTo` t)
@@ -108,14 +114,19 @@ redex2 (TVar x `EqualTo` t)
 redex2 (t `EqualTo` TVar x) = redex2 (TVar x `EqualTo` t)
 redex2 ((TArr t1 t2) `EqualTo` (TArr t3 t4)) =
    maybe (redex2 (t2 `EqualTo` t4)) (return . Just) =<< redex2 (t1 `EqualTo` t3)
-redex2 (t1 `LessThan` t2) =
-   case Map.elems $ Map.filter ((>1) . length) $ findPaths t1 t2 of
+redex2 (a `LessThan` b) =
+   case Map.elems $ Map.filter ((>1) . length) $ findPaths a b of
     [] -> return Nothing
-    (t1:t2:_):_ -> redex2 (t1 `EqualTo` t2)
+    (m:n:_):_ -> redex2 (m `EqualTo` n)
+    _:_ -> error "Impossible: the first element must have at least two elements because of filter"
  where findPaths (TVar x) t = Map.singleton x [t]
        findPaths _ (TVar _) = Map.empty
        findPaths (t1 `TArr` t2) (t3 `TArr` t4) =
           Map.unionWith union (findPaths t1 t3) (findPaths t2 t4)
+       findPaths (TForall _ _) _ = error "redex2: relation with not rank-0 type"
+       findPaths _ (TForall _ _) = error "redex2: relation with not rank-0 type"
+redex2 ((TForall _ _) `EqualTo` _) = error "redex2: relation with not rank-0 type"
+redex2 (_ `EqualTo` (TForall _ _)) = error "redex2: relation with not rank-0 type"
 
 redexColumn :: (MonadEnvironment m, MonadError TypeError m) => [ASUPRelation] -> m (Maybe (Substitution Type))
 redexColumn [] = return Nothing
@@ -144,20 +155,20 @@ solveASUP = go []
 substituteInASUP :: Int -> Substitution Type -> ASUP -> ASUP
 substituteInASUP n sub asup
  | n == snd (Array.bounds asup) =
-      let newRight = substituteRight sub (asup ! n)
+      let newRight = substituteRight (asup ! n)
       in asup // [(n, newRight)]
  | otherwise =
-      let newRight = substituteRight sub (asup ! n)
-          newLeft = substituteLeft sub (asup ! (n + 1))
+      let newRight = substituteRight (asup ! n)
+          newLeft = substituteLeft (asup ! (n + 1))
       in asup // [(n, newRight), (n+1, newLeft)]
- where substituteRight sub [] = []
-       substituteRight sub ((t1 `EqualTo` t2):rels) =
-          (substitute sub t1 `EqualTo` substitute sub t2) : substituteRight sub rels
-       substituteRight sub ((t1 `LessThan` t2):rels) =
-          (t1 `LessThan` substitute sub t2) : substituteRight sub rels
-       substituteLeft _ [] = []
-       substituteLeft sub ((t1 `EqualTo` t2):rels) = (t1 `EqualTo` t2) : substituteLeft sub rels
-       substituteLeft sub ((t1 `LessThan` t2):rels) = (substitute sub t1 `LessThan` t2) : substituteLeft sub rels
+ where substituteRight [] = []
+       substituteRight ((t1 `EqualTo` t2):rels) =
+          (substitute sub t1 `EqualTo` substitute sub t2) : substituteRight rels
+       substituteRight ((t1 `LessThan` t2):rels) =
+          (t1 `LessThan` substitute sub t2) : substituteRight rels
+       substituteLeft [] = []
+       substituteLeft ((t1 `EqualTo` t2):rels) = (t1 `EqualTo` t2) : substituteLeft rels
+       substituteLeft ((t1 `LessThan` t2):rels) = (substitute sub t1 `LessThan` t2) : substituteLeft rels
 
 substituteInTerm :: TypedTerm -> [Substitution Type] -> TypedTerm
 substituteInTerm (TypedVar t x) subs = TypedVar (substituteAll subs t) x
@@ -185,8 +196,8 @@ solveASUPInEnvironment userTypes t asup =
    in evalInEnvironmentT initEnvironment $ solveASUP asup
 
 extractType :: [(String, Type)] -> TypedTerm -> Type
-extractType userTypes t = foldr TArr mainType lam2Types
- where (lam2, mainType) = go t
+extractType userTypes term = foldr TArr mainType lam2Types
+ where (lam2, mainType) = go term
        lam2Types = map (\x -> maybe (TForall "a" $ TVar "a") id $ lookup x userTypes) lam2
        go (TypedLam _ (x,_) n) = first (x:) $ go n
        go t = ([],typeOf t)
