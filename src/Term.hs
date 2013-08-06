@@ -113,6 +113,7 @@ bracketExpr = between (char '(' *> spaces) (spaces *> char ')')
 lambdaExpr :: Parser Term
 lambdaExpr = do
    _ <- char '\\' <|> char 'λ'
+   spaces
    vs <- many1 (varname <* spaces)
    _ <- char '.'
    spaces
@@ -124,8 +125,8 @@ termExpr = try appExpr <|> noAppTermExpr
 
 noAppTermExpr :: Parser Term
 noAppTermExpr = choice
-   [ Var <$> varname
-   , lambdaExpr
+   [ lambdaExpr -- Precedes variable parser because λ is a proper variable name
+   , Var <$> varname
    , bracketExpr termExpr
    ]
 

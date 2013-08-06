@@ -1,7 +1,9 @@
 {-# LANGUAGE DoAndIfThenElse #-}
-module Type(Type(..), makeUniqueTVars) where
+module Type(Type(..), makeUniqueTVars, parse) where
 
-import Control.Applicative
+import Text.Parsec hiding (parse)
+import qualified Text.Parsec as Parsec
+import Control.Applicative hiding ((<|>))
 import Data.List
 
 import Term(TermClass(..), Substitution(..))
@@ -73,3 +75,45 @@ showType prec t@(TForall _ _) = brackets prec $ forallSymb ++ showForall t
 
 instance Show Type where
    show = showType 0
+
+------ Parsing ------
+type Parser = Parsec String ()
+
+varname :: Parser String
+varname = many1 (alphaNum <|> oneOf "_")
+
+bracketExpr :: Parser Type -> Parser Type
+bracketExpr = between (char '(' *> spaces) (spaces *> char ')')
+
+forallExpr :: Parser Type
+forallExpr = do
+   try (string forallSymb) <|> string "\\-/"
+   spaces
+   vs <- many1 (varname <* spaces)
+   char '.'
+   spaces
+   t <- typeExpr
+   return $ foldr TForall t vs
+
+typeExpr :: Parser Type
+typeExpr = try arrExpr <|> noArrExpr
+
+noArrExpr = choice
+   [ TVar <$> varname
+   , forallExpr
+   , bracketExpr typeExpr
+   ]
+
+arrExpr = do
+   t1 <- noArrExpr
+   spaces
+   try (string arrSymb) <|> string "->"
+   spaces
+   t2 <- typeExpr
+   return $ t1 `TArr` t2
+
+fullExpr :: Parser Type
+fullExpr = spaces *> typeExpr <* spaces <* eof
+
+parse :: String -> Either ParseError Type
+parse = Parsec.parse fullExpr ""
