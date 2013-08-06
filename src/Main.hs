@@ -1,4 +1,4 @@
-module Main where
+module Main(getType, main) where
 
 import System.Environment
 import System.Exit
@@ -14,6 +14,17 @@ import Type
 
 --toTerm :: String -> IO Term
 --toTerm = either (error . show) return . parse 
+
+--- GHCi interface ---
+
+getType :: String -> [String] -> IO Type
+getType term userTypes = do
+   (term',userTypes') <- parseArgs (term:userTypes)
+   case inferType userTypes' term' of
+    Left err -> error $ show err
+    Right t -> return t
+
+--- Command line interface ---
 
 printHelp :: IO ()
 printHelp = do
