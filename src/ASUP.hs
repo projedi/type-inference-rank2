@@ -5,6 +5,7 @@ import Control.Applicative
 import Control.Monad.Error
 import Data.List
 import qualified Data.Map as Map
+import Data.Maybe
 import Data.Array(Array, (!), (//))
 import qualified Data.Array as Array
 import Data.Either (partitionEithers)
@@ -85,8 +86,8 @@ computeASUP userTypes term = Array.array (0,length columns - 1) columns
           [typeOf n `EqualTo` (typeOf m `TArr` t)]
           ++ goSubTerm lamVars i n ++ goSubTerm lamVars i m
        goSubTerm lamVars i (TypedLam t (x,tx) n) =
-          [t `EqualTo` (tx `TArr` typeOf n)]
-          ++ goSubTerm ((x,tx):lamVars) i n
+          (t `EqualTo` (tx `TArr` typeOf n))
+          : goSubTerm ((x,tx):lamVars) i n
        go polyVars i (TypedLam _ (x,_) n) = go (x:polyVars) i n
        go polyVars i (TypedApp _ (TypedLam _ (y,yt) n) m) = 
           nColumn polyVars y yt m i : go (y:polyVars) (i + 1) n
@@ -103,8 +104,8 @@ redex1 (t `LessThan` TVar x) = (Just . (x `AssignTo`)) <$> renameVariables t
        renameVariables (TForall _ _) = error "redex1: relation with not rank-0 type"
 redex1 ((t1 `TArr` t2) `LessThan` (t3 `TArr` t4)) =
    maybe (redex1 (t2 `LessThan` t4)) (return . Just) =<< redex1 (t1 `LessThan` t3)
-redex1 ((TForall _ _) `LessThan` _) = error "redex1: relation with not rank-0 type"
-redex1 (_ `LessThan` (TForall _ _)) = error "redex1: relation with not rank-0 type"
+redex1 (TForall _ _ `LessThan` _) = error "redex1: relation with not rank-0 type"
+redex1 (_ `LessThan` TForall _ _) = error "redex1: relation with not rank-0 type"
 
 redex2 :: MonadError TypeError m => ASUPRelation -> m (Maybe (Substitution Type))
 redex2 (TVar x `EqualTo` t)
@@ -112,7 +113,7 @@ redex2 (TVar x `EqualTo` t)
  | x `elem` freeVars t = untypable
  | otherwise = return $ Just $ x `AssignTo` t
 redex2 (t `EqualTo` TVar x) = redex2 (TVar x `EqualTo` t)
-redex2 ((TArr t1 t2) `EqualTo` (TArr t3 t4)) =
+redex2 (TArr t1 t2 `EqualTo` TArr t3 t4) =
    maybe (redex2 (t2 `EqualTo` t4)) (return . Just) =<< redex2 (t1 `EqualTo` t3)
 redex2 (a `LessThan` b) =
    case Map.elems $ Map.filter ((>1) . length) $ findPaths a b of
@@ -125,8 +126,8 @@ redex2 (a `LessThan` b) =
           Map.unionWith union (findPaths t1 t3) (findPaths t2 t4)
        findPaths (TForall _ _) _ = error "redex2: relation with not rank-0 type"
        findPaths _ (TForall _ _) = error "redex2: relation with not rank-0 type"
-redex2 ((TForall _ _) `EqualTo` _) = error "redex2: relation with not rank-0 type"
-redex2 (_ `EqualTo` (TForall _ _)) = error "redex2: relation with not rank-0 type"
+redex2 (TForall _ _ `EqualTo` _) = error "redex2: relation with not rank-0 type"
+redex2 (_ `EqualTo` TForall _ _) = error "redex2: relation with not rank-0 type"
 
 redexColumn :: (MonadEnvironment m, MonadError TypeError m) => [ASUPRelation] -> m (Maybe (Substitution Type))
 redexColumn [] = return Nothing
@@ -142,7 +143,7 @@ redexASUP :: (MonadEnvironment m, MonadError TypeError m) => ASUP -> m (Maybe (I
 redexASUP = go . Array.assocs
  where go [] = return Nothing
        go ((n,rels):cols) =
-          maybe (go cols) (return . Just . (n,)) =<< (redexColumn rels)
+          maybe (go cols) (return . Just . (n,)) =<< redexColumn rels
 
 solveASUP :: (MonadEnvironment m, MonadError TypeError m) => ASUP -> m [Substitution Type]
 solveASUP = go []
@@ -198,7 +199,7 @@ solveASUPInEnvironment userTypes t asup =
 extractType :: [(String, Type)] -> TypedTerm -> Type
 extractType userTypes term = foldr TArr mainType lam2Types
  where (lam2, mainType) = go term
-       lam2Types = map (\x -> maybe (TForall "a" $ TVar "a") id $ lookup x userTypes) lam2
+       lam2Types = map (\x -> fromMaybe (TForall "a" $ TVar "a") $ lookup x userTypes) lam2
        go (TypedLam _ (x,_) n) = first (x:) $ go n
        go t = ([],typeOf t)
 

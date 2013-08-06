@@ -4,6 +4,7 @@ module Term(Term(..), TermClass(..), Substitution(..), parse, act, makeUniqueVar
 import Text.Parsec hiding (parse)
 import qualified Text.Parsec as Parsec
 import Control.Applicative hiding ((<|>))
+import Control.Monad
 import Data.List
 
 import VarEnvironment
@@ -31,7 +32,7 @@ instance Eq Term where
    (App n1 m1) == (App n2 m2) = n1 == n2 && m1 == m2
    (Lambda x n) == (Lambda y m)
     | x == y = n == m
-    | otherwise = n == substitute (y `AssignTo` (Var x)) m
+    | otherwise = n == substitute (y `AssignTo` Var x) m
    _ == _ = False
 
 instance TermClass Term where
@@ -56,7 +57,7 @@ act (App m _)
 
 betaReduction :: Term -> Term
 betaReduction t = evalInEnvironment (freeVars t) (betaReduction' <$> makeUniqueVars t)
- where betaReduction' ((Lambda x n) `App` m) = betaReduction' $ substitute (x `AssignTo` m) n
+ where betaReduction' (Lambda x n `App` m) = betaReduction' $ substitute (x `AssignTo` m) n
        betaReduction' (Var x) = Var x
        betaReduction' (Lambda x n) = Lambda x $ betaReduction' n
        betaReduction' (App n m) =
@@ -78,7 +79,7 @@ makeUniqueVars t = do
           inEnv <- inEnvironment x
           if inEnv then do
              y <- newVar "var"
-             return (y, substitute (x `AssignTo` (Var y)) m)
+             return (y, substitute (x `AssignTo` Var y) m)
           else return (x, m)
 
 ------ Printing ------
@@ -112,10 +113,10 @@ bracketExpr = between (char '(' *> spaces) (spaces *> char ')')
 
 lambdaExpr :: Parser Term
 lambdaExpr = do
-   _ <- char '\\' <|> char 'λ'
+   void $ char '\\' <|> char 'λ'
    spaces
    vs <- many1 (varname <* spaces)
-   _ <- char '.'
+   void $ char '.'
    spaces
    t <- termExpr
    return $ foldr Lambda t vs

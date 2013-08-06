@@ -19,7 +19,7 @@ tests = testGroup "ASUP tests"
    ]
 
 prop_asupCorrectness :: Term -> Bool
-prop_asupCorrectness t = null $ filter (not . null) $ intersects allVars
+prop_asupCorrectness t = not $ any (not . null) $ intersects allVars
  where t' = thetaReduction t
        t'' = evalInEnvironment [] $ typeTerm t'
        asup = computeASUP [] t''

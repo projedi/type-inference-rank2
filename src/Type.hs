@@ -4,6 +4,7 @@ module Type(Type(..), makeUniqueTVars, parse) where
 import Text.Parsec hiding (parse)
 import qualified Text.Parsec as Parsec
 import Control.Applicative hiding ((<|>))
+import Control.Monad
 import Data.List
 
 import Term(TermClass(..), Substitution(..))
@@ -18,7 +19,7 @@ instance Eq Type where
    (TArr m n) == (TArr p q) = m == p && n == q
    (TForall x m) == (TForall y n)
     | x == y = m == n
-    | otherwise = m == (substitute (y `AssignTo` (TVar x)) n)
+    | otherwise = m == substitute (y `AssignTo` TVar x) n
    _ == _ = False
 
 instance TermClass Type where
@@ -49,7 +50,7 @@ makeUniqueTVars t = do
           inEnv <- inEnvironment x
           if inEnv then do
              y <- newVar "type"
-             return (y, substitute (x `AssignTo` (TVar y)) m)
+             return (y, substitute (x `AssignTo` TVar y) m)
           else return (x, m)
 
 ------ Printing ------
@@ -87,10 +88,10 @@ bracketExpr = between (char '(' *> spaces) (spaces *> char ')')
 
 forallExpr :: Parser Type
 forallExpr = do
-   try (string forallSymb) <|> string "\\-/"
+   void $ try (string forallSymb) <|> string "\\-/"
    spaces
    vs <- many1 (varname <* spaces)
-   char '.'
+   void $ char '.'
    spaces
    t <- typeExpr
    return $ foldr TForall t vs
@@ -98,16 +99,18 @@ forallExpr = do
 typeExpr :: Parser Type
 typeExpr = try arrExpr <|> noArrExpr
 
+noArrExpr :: Parser Type
 noArrExpr = choice
    [ TVar <$> varname
    , forallExpr
    , bracketExpr typeExpr
    ]
 
+arrExpr :: Parser Type
 arrExpr = do
    t1 <- noArrExpr
    spaces
-   try (string arrSymb) <|> string "->"
+   void $ try (string arrSymb) <|> string "->"
    spaces
    t2 <- typeExpr
    return $ t1 `TArr` t2

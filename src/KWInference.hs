@@ -23,8 +23,8 @@ generateSubs taken = go "a"
 prettifyType :: [(String, Type)] -> Type -> Type
 prettifyType userTypes t = substituteAll subs t
  where subs = generateSubs ftvUser (freeVars t \\ ftvUser)
-       ftvUser = foldr union [] $ map (freeVars . snd) userTypes
+       ftvUser = foldr (union . freeVars . snd) [] userTypes
 
 inferType :: [(String, Type)] -> Term -> TypeErrorMonad Type
-inferType userTypes term = do
+inferType userTypes term =
    prettifyType userTypes <$> typeInASUP userTypes (thetaReduction term)
