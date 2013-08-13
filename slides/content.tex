@@ -1,0 +1,244 @@
+\frame {
+   \frametitle{System F}
+   \begin{align*}
+      \mathbb{T} ::=&\ \mathbb{V}\\
+                   |&\ \mathbb{T} \rightarrow \mathbb{T}\\
+                   |&\ \forall \mathbb{V}.\ \mathbb{T}
+   \end{align*}
+   Сильная нормализуемость $\Rightarrow$ типизируемость неразрешима.
+   \pause
+
+   Ранг типа - насколько глубоко может находиться $\forall$ по левую сторону $\rightarrow$.
+   \cite{KW93} доказали разрешимость для рангов $\leq 2$.
+}
+
+\frame {
+   \frametitle{Но зачем?}
+   \begin{itemize}
+      \item<1-> Классический пример:
+         \(\lambda f.\ f\ f\uncover<3->{:: \color<3->{red}{\forall b.\ (\forall a.\ a) \rightarrow b}}\)
+      \item<2-> Church numerals:
+         \begin{align*}
+            \mathtt{FALSE} &:= \lambda x y.\ y \uncover<3->{:: \color<3>{blue}{
+               \forall a.\ a \rightarrow a \rightarrow a}}\\
+            \mathtt{TRUE}  &:= \lambda x y.\ x \uncover<3->{:: \color<3>{blue}{
+               \forall a.\ a \rightarrow a \rightarrow a}}\\
+            n &:= \lambda f x.\ f^n\ x \uncover<3->{::\color<3>{blue}{
+               \forall a.\ (a \rightarrow a) \rightarrow a \rightarrow a}}\\
+            iszero &:= \lambda n.\ n\ (\lambda x.\ \mathtt{FALSE})\ \mathtt{TRUE} \\
+                   &\uncover<3->{:: \color<3->{red}{
+                      \forall b.\ (\forall a.\ (a \rightarrow a) \rightarrow a \rightarrow a)
+                      \rightarrow b \rightarrow b \rightarrow b}}
+         \end{align*}
+   \end{itemize}
+   \uncover<4->{ Практическое применение \cite{SPJ07}: }
+   \begin{itemize}
+      \item<4-> Инкапсуляция состояния:
+         \( runST :: \color<4->{red}{\forall a.\ (\forall s.\ ST\ s\ a) \rightarrow a}\)
+      \item<5-> Динамическая типизация(Закон Лейбница): %TODO: Elaborate
+         \begin{align*}
+            &\mathbf{data}\ Equal\ a\ b\ \mathbf{where}\\
+            &\ Equal :: \color<5->{red}{(\forall f.\ f\ a \rightarrow f\ b) \rightarrow Equal\ a\ b}
+         \end{align*}
+   \end{itemize}
+   \uncover<6-> {\em Все представленные типы ранга 2.}
+}
+
+\frame {
+   \frametitle{Алгоритмы вывода типов ранга 2}
+   \begin{enumerate}[<+->]
+      \item \alt<-1>{Nancy McCracken, 1984\\
+         {\em The typechecking of programs with implicit type structure}.
+         }{\sout{Nancy McCracken, 1984\\
+         {\em The typechecking of programs with implicit type structure}.
+         }}
+         \uncover<2->{\textbf{ОШИБОЧЕН}\cite{Jim95}.}
+      \item A. J. Kfoury, J. B. Wells, 1993\\
+         {\em A Direct Algorithm for Type Inference in the Rank-2 Fragment
+          of the Second-Order $\lambda$-Calculus}. \\
+         Основной алгоритм в данной работе.
+      \item Brad Lushman, Gordon V. Cormack, 2007\\
+         {\em A More Direct Algorithm for Type Inference in the Rank-2 Fragment
+          of the Second-Order $\lambda$-Calculus}. \\
+         Основан на \cite{KW93}, вычислительно эффективнее.
+   \end{enumerate}
+}
+
+\frame {
+   \frametitle{Kfoury, Wells алгоритм}
+   \begin{enumerate}[<+->]
+      \item \textbf{Входные данные}.
+         \begin{align*}
+            &\text{Терм } N,\quad
+            \mathtt{FTV}(N) = \overrightarrow{\omega},\quad
+            \mathtt{ACT}(N) = \overrightarrow{x}\\
+            \only<1>{
+               %&\mathtt{ACT}(\lambda x_1 x_2.\ (\lambda x_3 x_4.\ x_4) (\lambda x_5.\ x_5)) = \{x_1, x_2, x_4\}
+               &\mathtt{ACT}(\lambda x_1 x_2.\ \mathbf{let}\ x_3 = \lambda x_5.\ x_5\ \mathbf{in}\ \lambda x_4.\ x_4) = \{x_1, x_2, x_4\}
+               \\
+            }
+            &\overrightarrow{x} :: \overrightarrow{\tau_x},\quad
+            \overrightarrow{\omega} :: \overrightarrow{\tau_{\omega}},\quad
+            \text{все }\tau\text{ ранга }1
+         \end{align*}
+         \only<1>{
+         Если для $x$ или $\omega$ не предоставить тип, то подразумевается $\forall a.\ a$.
+         }
+      \item \textbf{$\theta$-редукция}. \only<2>{Преобразование $N$ к виду:
+         \begin{align*}
+            \lambda \overrightarrow{x}.\ 
+            \mathbf{let}\ &y_1 = T_1(\overrightarrow{x},\overrightarrow{\omega}) \\
+                          &y_2 = T_2(\overrightarrow{x},\overrightarrow{\omega},y_1) \\
+                          &\ \vdots \\
+                          &y_k = T_k(\overrightarrow{x},\overrightarrow{\omega},y_1,\dots,y_{k-1}) \\
+            \mathbf{in}\ &T_{k+1}(\overrightarrow{x},\overrightarrow{\omega},y_1,\dots,y_k)
+         \end{align*} }
+      \item \textbf{Acyclic Semi-Unification Problem}. \only<3>{
+         %TODO: Simplify
+         \[
+            \tau \leq \sigma \Leftrightarrow S(\tau) = \sigma,\quad
+            S(\mathbb{T} \rightarrow \mathbb{T}) = S(\mathbb{T}) \rightarrow S(\mathbb{T}),\quad
+            S(\mathbb{V}) \in \mathbb{T}
+         \]
+         Semi-Unification problem:
+         \[
+            \{(\tau_i,\sigma_i)\} \mapsto S: \forall i.\ \text{ выполняется } S(\tau_i) \leq S(\sigma_i) 
+         \]
+         %TODO: Define tranformation from theta-normal form to ASUP
+         Неразрешима, но Acyclic Semi-Unification problem разрешима.  }
+      \item \textbf{Выводимый тип}. \only<4>{
+         \[
+            \forall (\mathtt{FTV}(\sigma) \setminus
+               (\mathtt{FTV}(\overrightarrow{\tau_x}) \cup \mathtt{FTV}(\overrightarrow{\tau_\omega} )).\ 
+               \tau_{x_1} \rightarrow \tau_{x_2} \rightarrow
+               \ldots \rightarrow \tau_{x_n} \rightarrow \sigma,
+         \]
+         где $\sigma$ ранга 0.  }
+   \end{enumerate}
+}
+
+   %\[
+   %TODO: Do I need this ASUP definition?
+   %\begin{array}{r@{\ \leq\ } l | r@{\ \leq\ } l | c | r@{\ \leq\ } l}
+      %\tau_{1,1} & \sigma_{1,1} & \tau_{1,2} & \sigma_{1,2} &
+         %\cdots & \tau_{1,n} & \sigma_{1,n} \\
+
+      %\tau_{k,1} & \sigma_{k,1} & \tau_{k,2} & \sigma_{k,2} &
+         %\cdots & \tau_{k,n} & \sigma_{k,n} \\[\dimexpr-\normalbaselineskip+1ex]
+      %\multicolumn{1}{l}{\underbrace{}_{V_0}} &
+      %\multicolumn{2}{@{}l@{}}{\underbrace{\hspace*{\dimexpr2\tabcolsep}\hphantom{\sigma{k,1} \tau_{k,2}}}_{V_1}} &
+      %\multicolumn{3}{@{}l@{}}{\underbrace{\hspace*{\dimexpr2\tabcolsep}\hphantom{\sigma{k,2} \dots \tau{k,n}}}_{\dots}} &
+      %\multicolumn{1}{@{}l}{\underbrace{}_{V_{n+1}}}
+   %\end{array}\quad 
+      %V_i \cap V_j = \varnothing,\quad i \neq j
+   %\]
+
+\frame {
+   \frametitle{Проблемы алгоритма}
+   \begin{itemize}[<+->]
+      \item $\theta$-редукция изменяет терм $\Rightarrow$ не установить, в какой
+            части оригинального терма произошла ошибка типизации.
+      \item Свободные переменные обязаны быть ранга 1 $\Rightarrow$ тип терма выводим,
+            но использовать в других термах его не можем.
+      \item Типы аргументов и свободных переменных не выводимы $\Rightarrow$
+            типы аргументов необходимо указывать и вывод типов при взаимной рекурсии невозможен.
+   \end{itemize}
+}
+
+\frame {
+   \frametitle{Фундаментальная проблема System F}
+   %TODO: Simplify
+   Понятие наиболее общего типа не определено: нету ни главного
+   типа, ни главной пары.
+
+   Главный тип($\sigma$):
+   \[
+      \exists A, \tau.\ A \vdash M: \tau \Rightarrow \exists \sigma.\ A \vdash M: \sigma,
+   \]
+   где $\sigma$ представляет все возможные типизации $M$ в $A$.
+
+   Главная пара($(B, \sigma)$):
+   \[
+      \exists A, \tau.\ A \vdash M: \tau \Rightarrow \exists B, \sigma.\ B \vdash M: \sigma,
+   \]
+   где $(B, \sigma)$ представляет все возможные типизации $M$.
+   \pause
+   \begin{align*}
+      \lambda f.\ f\ f &:: (\forall a.\ a) \rightarrow (\forall b.\ b) \\
+      \lambda f.\ f\ f &:: (\forall a.\ a \rightarrow a) \rightarrow (\forall b.\ b \rightarrow b)
+   \end{align*}
+}
+
+\frame {
+   \frametitle{Преимущества главной пары}
+   \begin{description}
+      \item[Модульная компиляция] терм нужно перекомпилировать только, когда терм
+         изменяется, а не когда изменяется терм одной из свободной переменной.
+      \item[Добавление рекурсии]
+      \[
+         \begin{array}{l}
+            \AxiomC{$A \cup \{ x :: \tau \} \vdash M :: \tau$}
+            \RightLabel{($\tau$ ранга 0)}
+            \UnaryInfC{$A \vdash (\mu x.\ M) :: \tau$}
+            \DisplayProof \\
+            \\
+
+            \AxiomC{$A \cup \{ x :: \tau \} \vdash M :: \sigma$}
+            \RightLabel{($\sigma \leq \tau$)}
+            \UnaryInfC{$A \vdash (\mu x.\ M) :: \sigma$}
+            \DisplayProof
+         \end{array}
+      \]
+      \item[Сообщения об ошибках] $(\lambda x.\ M) N$ \\
+         Типизируем отдельно $M$ и $N$ $\Rightarrow$ можно отличить ошибки в $M$,
+         вызванные не $N$ и сузить область поиска ошибки.
+         %Главная пара для $M$ -> тип для $x$ -> проверяем подходит ли главный тип для $N$.
+         %Главный тип для $N$ -> подставляем в $M$ -> ошибки ....
+      %TODO: Tell about incremental type inference(for REPL)
+   \end{description}
+}
+
+\frame {
+   \frametitle{Что же делать?}
+   \begin{itemize}
+      \item \cite{SPJ07} предлагает алгоритмы для работы с произвольным рангом, но
+         которым требуются подсказки для некоторых термов.
+      \item \cite{Jim95} предлагает использовать типы-пересечения, поскольку они
+         типизируют ровно те же термы, но обладают главной парой
+      %TODO: What are intersection types?
+      %\item Попробовать поискать альтернативные представления общего типа.
+         %\cite{Jim95} предлагает использовать пересечения в качестве такого представления
+   \end{itemize}
+}
+
+\frame {
+   \frametitle{What have I done?}
+   Реализация алгоритма \cite{KW93} \url{https://github.com/projedi/type-inference-rank2}
+}
+
+\frame {
+   \frametitle{The bibliography}
+   \begin{thebibliography}{Kfoury, Wells, 1993}
+      \bibitem[Kfoury, Wells, 1993]{KW93}
+         A. J. Kfoury, J. B. Wells
+         \newblock{\em A Direct Algorithm for Type Inference in the Rank-2 fragment of the Second Order $\lambda$-calculus}
+         \newblock 1994
+      \bibitem[Jim, 1995]{Jim95}
+         T. Jim
+         \newblock{\em What are principal typings and what are they good for?}
+         \newblock 1995
+      \bibitem[Peyton Jones, 2007]{SPJ07}
+         S. P. Jones, D. Vytiniotis, S. Weirich, M. Shields
+         \newblock {\em Practical Type Inference for arbitrary-rank types}.
+         \newblock 2007
+      \bibitem[The Church Project]{ChurchProject}
+         \url{http://types.bu.edu/}
+         \newblock {\em The Church Project}
+         \newblock последнее обновление в 2010
+   \end{thebibliography}
+}
+
+\frame {
+   \frametitle{That's all, folks!}
+   Questions?
+}
