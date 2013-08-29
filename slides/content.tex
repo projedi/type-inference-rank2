@@ -14,14 +14,14 @@
 \frame {
    \frametitle{System F}
    \[\begin{array}{rlr}
-      \mathbb{T} ::=&\ \mathbb{V} & \multirow{3}{*}{
+      \mathbb{T} ::=&\ \mathbb{V} \quad & \multirow{3}{*}{
          \AxiomC{$A \vdash M : \forall \alpha. \tau $}
          \LeftLabel{INST}
          \UnaryInfC{$A \vdash M : \tau[\alpha := \sigma]$}
          \DisplayProof
       }\\
        |&\ \mathbb{T} \rightarrow \mathbb{T}\\
-       |&\ \forall \mathbb{V}.\ \mathbb{T}
+       |&\ \color<1>{red}{\forall \mathbb{V}.\ \mathbb{T}}
    \end{array}\]
    \pause
    Типизируемость неразрешима.
@@ -116,36 +116,37 @@
          \end{align*}}{
             \(\lambda \overrightarrow{x}.\ (\lambda y_1.\ (\dots (\lambda y_k.\ T_{k+1}) T_k \dots)) T_1 \)
          }
-      \item<5-> \textbf{Acyclic Semi-Unification Problem}. \only<5-7>{
+      \item<5-> \textbf{Acyclic Semi-Unification Problem}. \only<5>{
             \[\begin{array}{l}
-               \tau \leq \sigma \Leftrightarrow S(\tau) = \sigma,\\
+               \tau \leq \sigma \Leftrightarrow S(\tau) = \sigma\\
                S(\sigma \rightarrow \tau) = S(\sigma) \rightarrow S(\tau),\quad
                S(\mathbb{V}) \in \mathbb{T}\\
                \tau, \sigma \text{ ранга 0}
             \end{array}\]
          }\only<6-7>{
-            Semi-Unification problem:
-            \[
-               \{(\tau_i,\sigma_i)\} \mapsto S: \forall i.\ S(\tau_i) \leq S(\sigma_i) 
-            \]
-         }\only<7>{
-            Неразрешима, но ограниченный вариант - Acyclic Semi-Unification problem - разрешима.
-         }\only<8>{
             \begin{align*}
-               \sigma \doteq \tau &\Leftrightarrow \alpha \rightarrow \alpha \leq \sigma \rightarrow \tau\\
-               \tau' &= \forall \alpha. \tau,\ \tau' \text{ ранга 0}\\
-               \tau'_x &\leq \beta_{x,0},\ \dots \omega
+               \sigma \doteq \tau &\Leftrightarrow \alpha \rightarrow \alpha \leq' \sigma \rightarrow \tau\\
+               \tau_x &= \forall \overrightarrow{\alpha}. \tau_x',\ \tau_x' \text{ ранга 0},\ \dots\ \omega\\
+               \tau'_x &\leq' \beta_{x,0},\quad \tau'_{\omega} \leq' \beta_{\omega,0},
             \end{align*}
+         }\only<7>{
             \\Неравенства для $T_i$:
             \begin{align*}
                N\ M &\mapsto \delta_N \doteq \delta_M \rightarrow \delta_{N M}\\
                \lambda z.\ N &\mapsto \delta_{\lambda z.\ N} \doteq \gamma_z \rightarrow \delta_N\\
                z &\mapsto \gamma_z \doteq \delta_z\\
-               x &\mapsto \beta_{x,i-1} \leq \delta_x,\ \dots\ \omega,\ \dots\ y\\
-               \beta_{x,i-1} &\leq \beta_{x,i},\ \dots\ \omega,\ \dots\ y
+               x &\mapsto \beta_{x,i-1} \leq' \delta_x,\ \dots\ \omega,\ \dots\ y\\
+               \beta_{x,i-1} &\leq' \beta_{x,i},\ \dots\ \omega,\ \dots\ y
             \end{align*}
-         }\only<9->{ \(S,\ \delta_{T_{k+1}}\) }
-      \item<9-> \textbf{Выводимый тип}.
+         }\only<8-9>{\\
+            Semi-Unification problem:
+            \[
+               \{\tau_i \leq' \sigma_i\} \mapsto S: \forall i.\ S(\tau_i) \leq S(\sigma_i) 
+            \]
+         }\only<9>{
+            Неразрешима, но ограниченный вариант - Acyclic Semi-Unification problem - разрешима.
+         }\only<10->{ \(S,\ \delta_{T_{k+1}}\) }
+      \item<10-> \textbf{Выводимый тип}.
          \[
             \tau_{x_1} \rightarrow \ldots \rightarrow \tau_{x_n} \rightarrow S(\delta_{T_{k+1}})
          \]
@@ -171,14 +172,20 @@
 \frame {
    \frametitle{Проблемы алгоритма}
    \begin{itemize}[<+->]
-      %TODO: Add an example to that.
       \item $\theta$-редукция изменяет терм $\Rightarrow$ не установить, в какой
             части оригинального терма произошла ошибка типизации.
+            \only<1>{
+            \begin{align*}
+               &a\ (\lambda x.\ \llet y = x\ \iin y\ y)\\
+               \\
+               &\llet v = \lambda x.\ x \\
+               &\iin a\ (\lambda x.\ (v\ x) (v\ x))
+            \end{align*}}
       \item Свободные переменные обязаны быть ранга 1 $\Rightarrow$ тип терма выводим,
             но использовать в других термах его не можем.
       \item Типы аргументов и свободных переменных не выводимы $\Rightarrow$
-            типы аргументов необходимо указывать и вывод типов при взаимной рекурсии невозможен.
-      %TODO: невыводимость аргументов - их тип _|_ -> честных термов таких нет.
+            типы аргументов необходимо указывать.
+      %TODO: невыводимость аргументов -> их тип _|_ -> честных термов таких нет.
    \end{itemize}
 }
 
@@ -189,17 +196,17 @@
    \pause
 
    Главный тип($\sigma$):
-   \[
-      \exists A, \tau.\ A \vdash M: \tau \Rightarrow \exists \sigma.\ A \vdash M: \sigma,
-   \]
-   где $\sigma$ представляет все возможные типы $M$ в $A$.
+   \begin{align*}
+      &\exists A, \tau.\ A \vdash M: \tau \Rightarrow \exists \sigma.\ A \vdash M: \sigma,\\
+      &\forall \rho.\ A \vdash M: \rho \Rightarrow \exists S.\ \rho = S(\sigma)
+   \end{align*}
    \pause
 
    Главная пара($(B, \sigma)$):
-   \[
-      \exists A, \tau.\ A \vdash M: \tau \Rightarrow \exists B, \sigma.\ B \vdash M: \sigma,
-   \]
-   где $(B, \sigma)$ представляет все возможные типизации $M$.
+   \begin{align*}
+      &\exists A, \tau.\ A \vdash M: \tau \Rightarrow \exists B, \sigma.\ B \vdash M: \sigma,\\
+      &\forall C, \rho.\ C \vdash M: \rho \Rightarrow \exists S.\ \rho = S(\sigma), C = S(B)
+   \end{align*}
    \pause
 
    Пример:
@@ -215,36 +222,35 @@
       \item<1-> \textbf{Модульная компиляция}\only<1>{\\
          Терм нужно перекомпилировать только, когда он изменяется, а не когда
          изменяется терм одной из его свободных переменных.}
-      \item<2-> \textbf{Добавление рекурсии}\only<2>{
-            \[\mu x.\ M = \mathtt{FIX}(\lambda x. M)\]
-         }\only<3-6>{
+      \item<2-> \textbf{Добавление рекурсии}\only<2-7>{
+            \[\mu x.\ M = \mathtt{FIX}\ (\lambda x.\ M)\]
+         }\only<3-7>{
             \begin{center}
-               \AxiomC{$A \cup \{ x : \alt<6>{\textcolor{red}{\sigma}}{\textcolor<5->{blue}{\tau}} \} \vdash M : \tau$}
+               \AxiomC{$A \cup \{ x : \alt<6->{\textcolor<6>{red}{\sigma}}{\textcolor<5->{blue}{\tau}} \} \vdash M : \tau$}
                \only<3-4>{
                   \LeftLabel{REC-POLY}
                   \RightLabel{($\tau$ ранга \textcolor<4>{blue}{1})}
                }\only<5>{
                   \LeftLabel{REC-SIMPLE}
                   \RightLabel{($\tau$ ранга \textcolor{red}{0})}
-               }\only<6>{
+               }\only<6->{
                   \LeftLabel{REC}
-                  \RightLabel{(\textcolor{red}{$\tau \leq \sigma$})}
+                  \RightLabel{(\textcolor<6>{red}{$\tau \leq \sigma$})}
                }
                \UnaryInfC{$A \vdash (\mu x.\ M) : \tau$}
                \DisplayProof
             \end{center}
-            \only<4>{\textbf{Неразрешимо.}}
+            \only<4>{\textbf{Неразрешимо.}\cite{Jim95}}
          } \only<7>{
             Вместе с модульной компиляцией дают REPL с поддержкой взаимной рекурсии.
          }
-         %TODO: Why is rank-0 decidable?
-         %TODO: Think how type reconstruction works.
-      \item<7-> \textbf{Сообщения об ошибках} $(\lambda x.\ M) N$ \\
-         %TODO: Example, please.
-         Типизируем отдельно $M$ и $N$ $\Rightarrow$ можно отличить ошибки в $M$,
-         вызванные не $N$ и сузить область поиска ошибки.
-         %Главная пара для $M$ -> тип для $x$ -> проверяем подходит ли главный тип для $N$.
-         %Главный тип для $N$ -> подставляем в $M$ -> ошибки ....
+      \item<8-> \textbf{Сообщения об ошибках} $(\lambda x.\ M)\ N$ \\
+         Типизируем $M$, в котором все $x$ занумерованы, и отдельно $N$.
+         Проверяем \(typeof(N) \leq typeof(x_i)\).
+         \only<9>{\\
+         Без главной пары ошибка может быть обнаружена внутри $N$.
+         Пример на Haskell: \[ f = \llet x = (\lambda t \rightarrow t \cdot 3)\ \iin (x\ 2, x\ True) \]
+         }
    \end{itemize}
 }
 
@@ -260,14 +266,6 @@
 
 %TODO: If I have time - what are intersection types
 
-\frame {
-   \frametitle{Практика}
-   Реализация алгоритма \cite{KW93}
-   \curl{https://github.com/projedi/type-inference-rank2}
-}
-
-%TODO: Slightly larger url
-{\setbeamertemplate{footline}{\curl{https://github.com/projedi/type-inference-rank2}}
 \frame {
    \frametitle{Литература}
    \begin{thebibliography}{Kfoury, Wells, 1993}
@@ -291,5 +289,11 @@
 }
 
 \frame {
+   \frametitle{Практика}
+   Реализация алгоритма \cite{KW93}
+   \curl{https://github.com/projedi/type-inference-rank2}
+}
+
+\frame {
    \center \Huge Q\&A
-}}
+}
